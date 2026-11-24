@@ -1,0 +1,8 @@
+**/bin/
+**/obj/
+*.user
+*.log
+*.err.log
+ok.json
+fail.json
+.vs/
