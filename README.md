@@ -1,6 +1,6 @@
 # OpenTelemetry .NET Demo (ASP.NET Core 10)
 
-Verified sample for the article *OpenTelemetry in .NET: From Basic Logging to End-to-End Distributed Observability*.
+Verified sample for the article [OpenTelemetry in .NET: Correlated Traces, Metrics and Logs with Console Exporters](https://medium.com/@darshil.shah_64561/-05e6fce89897).
 
 Two services export traces, metrics and logs with `OpenTelemetry.Exporter.Console`. No Jaeger, Prometheus or Grafana is required.
 
@@ -28,7 +28,7 @@ dotnet build OtelDotnetDemo.sln
 ## Test
 
 ```bash
-dotnet test OtelDotnetDemo.sln
+dotnet test --solution OtelDotnetDemo.sln
 ```
 
 ## Run

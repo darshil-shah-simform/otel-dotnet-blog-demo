@@ -1,9 +1,13 @@
+using System.Diagnostics;
 using System.Net;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging.Abstractions;
+using OpenTelemetry;
+using OpenTelemetry.Trace;
 using OrderService.Controllers;
+using OrderService.Telemetry;
 
 namespace OtelDotnetDemo.Tests;
 
@@ -73,6 +77,50 @@ public class OrdersControllerTests
 
         Assert.NotNull(result);
         Assert.Equal(400, result.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateOrder_Success_SharesTraceIdWithOutboundHandler()
+    {
+        var exported = new List<Activity>();
+        using var tracerProvider = Sdk.CreateTracerProviderBuilder()
+            .AddSource(OrderTelemetry.SourceName)
+            .AddInMemoryExporter(exported)
+            .Build();
+
+        var handlerTraceIds = new List<string>();
+        var handler = new StubHandler((request, _) =>
+        {
+            if (Activity.Current is { } current)
+                handlerTraceIds.Add(current.TraceId.ToString());
+
+            if (request.Method == HttpMethod.Get)
+            {
+                return Task.FromResult(Json(HttpStatusCode.OK, new
+                {
+                    productId = "PROD-001",
+                    quantity = 150,
+                    available = true
+                }));
+            }
+
+            return Task.FromResult(Json(HttpStatusCode.OK, new
+            {
+                productId = "PROD-001",
+                reserved = 5,
+                remaining = 145
+            }));
+        });
+
+        var sut = CreateSut(handler);
+        var result = await sut.CreateOrder(
+            new CreateOrderRequest("PROD-001", 5, "CUST-42"),
+            CancellationToken.None);
+
+        var createOrder = Assert.Single(exported, activity => activity.DisplayName == "CreateOrder");
+        Assert.IsType<CreatedResult>(result);
+        Assert.NotEmpty(handlerTraceIds);
+        Assert.All(handlerTraceIds, traceId => Assert.Equal(createOrder.TraceId.ToString(), traceId));
     }
 
     private static OrdersController CreateSut(HttpMessageHandler handler)
